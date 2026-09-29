@@ -218,9 +218,15 @@ class SearchResultPage extends StatelessWidget {
             ),
 
             const SizedBox(height: 24),
-
-            const Card(
-              child: Padding(
-                padding: EdgeInsets.all(18),
-                child: Text(
-                  'বর্তমানে এই
+                  const Card(
+        child: Padding(
+          padding: EdgeInsets.all(18),
+          child: Text('বর্তমানে কোনো ফলাফল পাওয়া যায়নি'),
+        ),
+      ),
+    ],
+  ),
+),
+);
+}
+}
