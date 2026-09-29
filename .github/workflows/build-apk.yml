@@ -21,7 +21,10 @@ jobs:
 
       - name: Flutter version
         run: flutter --version
-
+        
+      - name: Create Android project
+        run: flutter create .
+        
       - name: Install dependencies
         run: flutter pub get
 
