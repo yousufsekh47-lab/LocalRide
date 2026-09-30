@@ -1,4 +1,4 @@
-name: Build LocalRide Universal APK
+name: Build LocalRide Signed Universal APK
 
 on:
   workflow_dispatch:
@@ -33,13 +33,48 @@ jobs:
           flutter build apk --release \
             --target-platform android-arm,android-arm64,android-x64
 
-      - name: Check APK
+      - name: Create signing key
         run: |
-          ls -lh build/app/outputs/flutter-apk/
-          file build/app/outputs/flutter-apk/app-release.apk
+          keytool -genkeypair \
+            -v \
+            -keystore localride-release.jks \
+            -storepass LocalRide123 \
+            -keypass LocalRide123 \
+            -alias localride \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000 \
+            -dname "CN=LocalRide, OU=LocalRide, O=LocalRide, L=Kolkata, ST=West Bengal, C=IN"
 
-      - name: Upload Universal APK
+      - name: Find Android build tools
+        id: tools
+        run: |
+          echo "BUILD_TOOLS=$(ls -d $ANDROID_HOME/build-tools/* | sort -V | tail -1)" >> "$GITHUB_OUTPUT"
+
+      - name: Zipalign APK
+        run: |
+          ${{ steps.tools.outputs.BUILD_TOOLS }}/zipalign \
+            -f 4 \
+            build/app/outputs/flutter-apk/app-release.apk \
+            build/app/outputs/flutter-apk/app-release-aligned.apk
+
+      - name: Sign APK
+        run: |
+          ${{ steps.tools.outputs.BUILD_TOOLS }}/apksigner sign \
+            --ks localride-release.jks \
+            --ks-key-alias localride \
+            --ks-pass pass:LocalRide123 \
+            --key-pass pass:LocalRide123 \
+            --out build/app/outputs/flutter-apk/LocalRide.apk \
+            build/app/outputs/flutter-apk/app-release-aligned.apk
+
+      - name: Verify APK signature
+        run: |
+          ${{ steps.tools.outputs.BUILD_TOOLS }}/apksigner verify --verbose \
+            build/app/outputs/flutter-apk/LocalRide.apk
+
+      - name: Upload Signed APK
         uses: actions/upload-artifact@v4
         with:
-          name: LocalRide-Universal-APK
-          path: build/app/outputs/flutter-apk/app-release.apk
+          name: LocalRide-Signed-Universal-APK
+          path: build/app/outputs/flutter-apk/LocalRide.apk
