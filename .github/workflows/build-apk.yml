@@ -1,4 +1,4 @@
-name: Build LocalRide APK
+name: Build LocalRide Universal APK
 
 on:
   workflow_dispatch:
@@ -28,11 +28,18 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Build ARM64 APK
-        run: flutter build apk --release
+      - name: Build Universal APK
+        run: |
+          flutter build apk --release \
+            --target-platform android-arm,android-arm64,android-x64
 
-      - name: Upload APK
+      - name: Check APK
+        run: |
+          ls -lh build/app/outputs/flutter-apk/
+          file build/app/outputs/flutter-apk/app-release.apk
+
+      - name: Upload Universal APK
         uses: actions/upload-artifact@v4
         with:
-          name: LocalRide-APK
+          name: LocalRide-Universal-APK
           path: build/app/outputs/flutter-apk/app-release.apk
