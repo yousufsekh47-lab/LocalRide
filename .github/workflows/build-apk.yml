@@ -1,4 +1,4 @@
-name: Build LocalRide Signed Universal APK
+name: Build LocalRide Universal APK
 
 on:
   workflow_dispatch:
@@ -8,7 +8,7 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout
@@ -18,63 +18,42 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: stable
+          cache: true
 
       - name: Flutter version
         run: flutter --version
 
-      - name: Create Android project
-        run: flutter create --platforms=android .
+      - name: Create Android project if missing
+        run: |
+          if [ ! -d "android" ]; then
+            flutter create --platforms=android .
+          fi
+
+      - name: Clean project
+        run: flutter clean
 
       - name: Install dependencies
         run: flutter pub get
 
       - name: Build Universal APK
-        run: |
-          flutter build apk --release \
-            --target-platform android-arm,android-arm64,android-x64
+        run: flutter build apk --release
 
-      - name: Create signing key
+      - name: Verify APK
         run: |
-          keytool -genkeypair \
-            -v \
-            -keystore localride-release.jks \
-            -storepass LocalRide123 \
-            -keypass LocalRide123 \
-            -alias localride \
-            -keyalg RSA \
-            -keysize 2048 \
-            -validity 10000 \
-            -dname "CN=LocalRide, OU=LocalRide, O=LocalRide, L=Kolkata, ST=West Bengal, C=IN"
+          ls -lh build/app/outputs/flutter-apk/app-release.apk
+          file build/app/outputs/flutter-apk/app-release.apk
 
-      - name: Find Android build tools
-        id: tools
+      - name: Prepare release files
         run: |
-          echo "BUILD_TOOLS=$(ls -d $ANDROID_HOME/build-tools/* | sort -V | tail -1)" >> "$GITHUB_OUTPUT"
+          mkdir -p release
+          cp build/app/outputs/flutter-apk/app-release.apk release/LocalRide-universal.apk
+          cd release
+          zip -9 LocalRide-universal.zip LocalRide-universal.apk
 
-      - name: Zipalign APK
-        run: |
-          ${{ steps.tools.outputs.BUILD_TOOLS }}/zipalign \
-            -f 4 \
-            build/app/outputs/flutter-apk/app-release.apk \
-            build/app/outputs/flutter-apk/app-release-aligned.apk
-
-      - name: Sign APK
-        run: |
-          ${{ steps.tools.outputs.BUILD_TOOLS }}/apksigner sign \
-            --ks localride-release.jks \
-            --ks-key-alias localride \
-            --ks-pass pass:LocalRide123 \
-            --key-pass pass:LocalRide123 \
-            --out build/app/outputs/flutter-apk/LocalRide.apk \
-            build/app/outputs/flutter-apk/app-release-aligned.apk
-
-      - name: Verify APK signature
-        run: |
-          ${{ steps.tools.outputs.BUILD_TOOLS }}/apksigner verify --verbose \
-            build/app/outputs/flutter-apk/LocalRide.apk
-
-      - name: Upload Signed APK
+      - name: Upload APK and ZIP
         uses: actions/upload-artifact@v4
         with:
-          name: LocalRide-Signed-Universal-APK
-          path: build/app/outputs/flutter-apk/LocalRide.apk
+          name: LocalRide-Universal
+          path: |
+            release/LocalRide-universal.apk
+            release/LocalRide-universal.zip
